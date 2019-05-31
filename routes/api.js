@@ -29,12 +29,34 @@ module.exports = function (app) {
     //6 - WIP
     .get(function (req, res){
       let project = req.params.project;
+      let search = {};
+      search.issue_title = req.query.issue_title;
+      search.issue_text = req.query.issue_text;
+      search.created_by = req.query.created_by;
+      search.assigned_to = req.query.assigned_to;
+      search.status_text = req.query.status_text;
+      search.created_on = req.query.created_on;
+      search.updated_on = req.query.updated_on;
+      search.open = req.query.open;
       if(project) {
-        project.findOne({project_name: project},(err, data)=>{
+        Project.findOne({project_name: project}, (err, data)=>{
           if(err) {
-            //Project or issue does not exist
+            res.json({error: "Something happened."});
           }else{
-            //Get issue from project
+            //Here you have to continue
+            let filteredIssues = [];
+            data.issues.map((issue)=>{
+              let coincidences = 0;
+              for(let i = 0; i<issue.length; i++) {
+                if(issue[i] == search[issue[i].toString()]){
+                  coincidences++;
+                }
+              }
+              if (req.query.length == coincidences) {
+                filteredIssues.push(issue);
+              }              
+            });
+            res.json({issues: data.issues});
           }
         });
       }else{
