@@ -26,37 +26,63 @@ module.exports = function (app) {
 
   app.route('/api/issues/:project')
     
-    //6 - WIP
+    //6 & 7 - WIP
     .get(function (req, res){
       let project = req.params.project;
+    
       let search = {};
-      search.issue_title = req.query.issue_title;
-      search.issue_text = req.query.issue_text;
-      search.created_by = req.query.created_by;
-      search.assigned_to = req.query.assigned_to;
-      search.status_text = req.query.status_text;
-      search.created_on = req.query.created_on;
-      search.updated_on = req.query.updated_on;
-      search.open = req.query.open;
+      if (req.query.issue_title) search.issue_title = req.query.issue_title.toString();
+      if (req.query.issue_text) search.issue_text = req.query.issue_text.toString();
+      if (req.query.created_by) search.created_by = req.query.created_by.toString();
+      if (req.query.assigned_to) search.assigned_to = req.query.assigned_to.toString();
+      if (req.query.status_text) search.status_text = req.query.status_text.toString();
+      if (req.query.created_on) search.created_on = req.query.created_on.toString();
+      if (req.query.updated_on) search.updated_on = req.query.updated_on.toString();
+      if (req.query.open) search.open = req.query.open.toString();
+      
       if(project) {
         Project.findOne({project_name: project}, (err, data)=>{
           if(err) {
             res.json({error: "Something happened."});
           }else{
-            //Here you have to continue
+            let issues = data.issues;
             let filteredIssues = [];
-            data.issues.map((issue)=>{
+            issues.map((issue)=>{
               let coincidences = 0;
-              for(let i = 0; i<issue.length; i++) {
-                if(issue[i] == search[issue[i].toString()]){
-                  coincidences++;
-                }
+              if (search.issue_title != undefined) {
+                if (search.issue_title.toString()==issue.issue_title.toString()) coincidences++;
               }
-              if (req.query.length == coincidences) {
-                filteredIssues.push(issue);
-              }              
+              
+              if (search.issue_text != undefined) {
+                if (search.issue_text.toString()==issue.issue_text.toString()) coincidences++;
+              }
+              
+              if (search.created_by != undefined) {
+                if (search.created_by.toString()==issue.created_by.toString()) coincidences++;
+              }
+              
+              if (search.assigned_to != undefined) {
+                if (search.assigned_to.toString()==issue.assigned_to.toString()) coincidences++;
+              }
+              
+              if (search.status_text != undefined) {
+                if (search.status_text.toString()==issue.status_text.toString()) coincidences++;
+              }
+              
+              if (search.created_on != undefined) {
+                if (search.created_on.toString() ==issue.created_on.toString()) coincidences++;
+              }
+              
+              if (search.updated_on != undefined) {
+                if (search.updated_on.toString()==issue.updated_on.toString()) coincidences++;
+              }
+              
+              if (search.open != undefined) {
+                if (search.open.toString()==issue.open.toString()) coincidences++;
+              }
+              if (Object.keys(search).length == coincidences) filteredIssues.push(issue);
             });
-            res.json({issues: data.issues});
+            res.json({issues: filteredIssues});
           }
         });
       }else{
