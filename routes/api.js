@@ -1,32 +1,13 @@
 'use strict';
 
 const expect   = require('chai').expect;
-const mongoose = require('mongoose');
-
-mongoose.connect(process.env.DB, {useNewUrlParser: true, useFindAndModify: false});
-
-let projectSchema = new mongoose.Schema({
-  project_name: {type: String, required: true},
-  issues: [{
-    issue_title: {type: String, required: true},
-    issue_text: {type: String, required: true},
-    created_by: {type: String, required: true},
-    assigned_to: String,
-    status_text: String,
-    created_on: Date,
-    updated_on: Date,
-    open: Boolean
-  }]
-});
-
-let Project = mongoose.model('Project', projectSchema);
-
+let Project = require('../models/Project.js');
 
 module.exports = function (app) {
 
   app.route('/api/issues/:project')
     
-    //6 & 7 - WIP
+    //6 & 7 - GET and filter
     .get(function (req, res){
       let project = req.params.project;
     
@@ -82,7 +63,7 @@ module.exports = function (app) {
               }
               if (Object.keys(search).length == coincidences) filteredIssues.push(issue);
             });
-            res.json({issues: filteredIssues});
+            res.json(filteredIssues);
           }
         });
       }else{
@@ -96,27 +77,29 @@ module.exports = function (app) {
       let issue = {issue_title: req.body.issue_title,
                    issue_text: req.body.issue_text,
                    created_by: req.body.created_by,
-                   assigned_to: req.body.assigned_to,
-                   status_text: req.body.status_text,
+                   assigned_to: (req.body.assigned_to ? req.body.assigned_to : ""),
+                   status_text: (req.body.status_text ? req.body.status_text : ""),
                    created_on: new Date(),
                    updated_on: new Date(),
                    open: true};
       let p = new Project({project_name: projectName, issues: [issue]});
-      if(projectName && req.body.issue_title && req.body.issue_text && req.body.created_by)  {
+      if(projectName && req.body.issue_title && req.body.issue_text && req.body.created_by) {
         Project.findOne({project_name: projectName},(err, data)=>{
-          if(err){
-            
+          if(err){            
           }else{
             if(data==undefined) {
               // Create project and add issue
-              p.save((err, data)=>{});
+              p.save((err, data)=>{
+                return res.json(data.issues);
+              });
             }else{
               // Add Issue to project
               data.issues.push(issue);
               Project.findOneAndUpdate({project_name: projectName},
                                        {issues: data.issues},
-                                       (err, data)=>{
-                return data;                
+                                       {new: true},
+                                       (err, newData)=>{
+                return res.json(newData.issues);
               });
             }
           }
@@ -132,28 +115,41 @@ module.exports = function (app) {
       let id = req.body._id;
       if(project) {
         if (req.body.issue_title == undefined && req.body.issue_text == undefined && req.body.created_by == undefined && req.body.assigned_to == undefined && req.body.status_text == undefined) {
-          return "No update field sent";
+          return res.json({error: "No update field sent"});
         }else{
           Project.findOne({project_name: project},(err, data)=>{
             if (err) {
               console.log(err);
-              return "Could not update " + id;
+              return res.json({error: "Could not update " + id});
             }else{
-              //Look for issue by its _id to populate fields
-              const position = data.issues.findIndex((iss)=>{return iss._id==id});
-              let newIssues = [...data.issues];
-              newIssues[position].issue_title = req.body.issue_title;
-              newIssues[position].issue_text = req.body.issue_text;
-              newIssues[position].created_by = req.body.created_by;
-              newIssues[position].assigned_to = req.body.assigned_to;
-              newIssues[position].status_text = req.body.status_text;
-              newIssues[position].updated_on = new Date();
-              newIssues[position].open = (req.body.open=="on" ? false : true );
-              Project.findOneAndUpdate({project_name: project},
-                                       {issues: newIssues},
-                                       (err, doc)=>{
-                return "Successfully updated";
-              });
+              if(data==undefined){
+                return res.json({error: "The project does not exist"});
+              }else{
+                if (id) {
+                  //Look for issue by its _id to populate fields
+                  const position = data.issues.findIndex((iss)=>{return iss._id==id});
+                  let newIssues = [...data.issues];
+                  newIssues[position].issue_title = req.body.issue_title;
+                  newIssues[position].issue_text = req.body.issue_text;
+                  newIssues[position].created_by = req.body.created_by;
+                  newIssues[position].assigned_to = req.body.assigned_to;
+                  newIssues[position].status_text = req.body.status_text;
+                  newIssues[position].updated_on = new Date();
+                  newIssues[position].open = (req.body.open=="on" ? false : true );
+                  Project.findOneAndUpdate({project_name: project},
+                                           {issues: newIssues},
+                                           {new: true},
+                                           (err, doc)=>{
+                    if(err) {
+                      return res.json({error: "Could not save changes on " + id});
+                    }else{
+                      return res.json(doc.issues[position]);
+                    }
+                  });
+                }else{
+                  return res.json({error: "No ID sent"});
+                }             
+              }              
             }
           });
         }
@@ -167,7 +163,7 @@ module.exports = function (app) {
       let project = req.params.project;
       if(project) {
         if(req.body._id == undefined) {
-          return "_id error";
+          return res.json({error: "_id error"});
         }else{
           Project.findOne({project_name: project},(err, data)=>{
             if(err) {
