@@ -6,5 +6,5 @@
 var chai = require('chai');
 
 suite('Unit Tests', function(){
-  //none required
+  //none required, so I'm not doing them (this projects are really boring)
 });
